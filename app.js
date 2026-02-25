@@ -1,5 +1,4 @@
-/////// app.js
-
+// import dependencies
 require("dotenv").config();
 const path = require("node:path");
 const { Pool } = require("pg");
@@ -8,14 +7,16 @@ const session = require("express-session");
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 
+// Set up database connection`
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+  connectionString: process.env.DATABASE_URL,
 });
 
+// Set up Express app
 const app = express();
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
-
+// Set up Passport.js
 app.use(session({ secret: "cats", resave: false, saveUninitialized: false }));
 app.use(passport.session());
 app.use(express.urlencoded({ extended: false }));
@@ -36,6 +37,7 @@ app.post("/sign-up", async (req, res, next) => {
   }
 });
 
+// listen for requests
 app.listen(3000, (error) => {
   if (error) {
     throw error;
