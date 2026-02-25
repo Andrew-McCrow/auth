@@ -21,8 +21,57 @@ app.use(session({ secret: "cats", resave: false, saveUninitialized: false }));
 app.use(passport.session());
 app.use(express.urlencoded({ extended: false }));
 
+// Passport.js configuration
+passport.use(
+  new LocalStrategy(async (username, password, done) => {
+    try {
+      const { rows } = await pool.query(
+        "SELECT * FROM users WHERE username = $1",
+        [username],
+      );
+      const user = rows[0];
+
+      if (!user) {
+        return done(null, false, { message: "Incorrect username" });
+      }
+      if (user.password !== password) {
+        return done(null, false, { message: "Incorrect password" });
+      }
+      return done(null, user);
+    } catch (err) {
+      return done(err);
+    }
+  }),
+);
+
+// Serialize and deserialize user instances to and from the session.
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+// Deserialize user by ID from the session
+passport.deserializeUser(async (id, done) => {
+  try {
+    const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [
+      id,
+    ]);
+    const user = rows[0];
+
+    done(null, user);
+  } catch (err) {
+    done(err);
+  }
+});
+
+app.use((req, res, next) => {
+  res.locals.currentUser = req.user;
+  next();
+});
+
 // home route
-app.get("/", (req, res) => res.render("index"));
+app.get("/", (req, res) => {
+  res.render("index", { user: req.user });
+});
+
 // signup route
 app.get("/sign-up", (req, res) => res.render("sign-up-form"));
 app.post("/sign-up", async (req, res, next) => {
@@ -35,6 +84,24 @@ app.post("/sign-up", async (req, res, next) => {
   } catch (err) {
     return next(err);
   }
+});
+// login route
+app.post(
+  "/log-in",
+  passport.authenticate("local", {
+    successRedirect: "/",
+    failureRedirect: "/",
+  }),
+);
+
+// logout route
+app.get("/log-out", (req, res, next) => {
+  req.logout((err) => {
+    if (err) {
+      return next(err);
+    }
+    res.redirect("/");
+  });
 });
 
 // listen for requests
